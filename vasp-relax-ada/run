@@ -1,0 +1,2 @@
+#!/bin/sh
+exec "${HTTK_WORKFLOW_RUNNER_ARTIFACTS:?}/relax" "$@"

@@ -1,0 +1,12 @@
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+# Build outputs of the compiled packages (their [workflow.build] artifacts).
+/vasp-relax-*/relax
+*.o
+*.mod
+*.ali
+b~*
+/vasp-relax-java/classes/
+/vasp-relax-rust/target/
+/vasp-relax-rust/Cargo.lock

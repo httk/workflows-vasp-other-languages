@@ -1,0 +1,4 @@
+[plugin]
+name = "workflows-vasp-other-languages"
+description = "The packaged VASP relaxation authored in Ada, C, C++, Fortran, Java, Perl, and Rust"
+workflows = ["vasp-relax-ada", "vasp-relax-c", "vasp-relax-cpp", "vasp-relax-fortran", "vasp-relax-java", "vasp-relax-perl", "vasp-relax-rust"]
