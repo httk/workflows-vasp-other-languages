@@ -57,9 +57,13 @@ The build command is `make`, which compiles against the installed SDK in
 `$HTTK_WORKFLOW_NATIVE_API/<language>`, a variable `httk workflow build`
 exports. The Rust package copies the SDK crate to `target/sdk` first, since
 Cargo cannot expand an environment variable in a path dependency. Package
-publication transfers sources only; the `run` entry executes the registered
-build from `$HTTK_WORKFLOW_RUNNER_ARTIFACTS`. The Perl package needs no build:
-`run` is the Perl script, and it loads the SDK from `$HTTK_WORKFLOW_PERL_API`.
+publication transfers sources only, and no package carries a `run` bridge
+script: each manifest's `[workflow.runner] command` names what the manager
+runs. The compiled packages declare `command = ["{artifacts}/relax"]` (Java:
+`["java", "-cp", "{artifacts}/classes", "Relax"]`), which the manager expands
+to the registered build. The Perl package needs no build: its command is
+`["perl", "{package}/relax.pl"]`, and the script loads the SDK from
+`$HTTK_WORKFLOW_PERL_API`.
 
 Toolchains needed on the building machine, besides `make`:
 

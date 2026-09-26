@@ -25,7 +25,7 @@ from httk.core.cli import CLIContext
 from httk.workflow import TaskManager, Workspace, collect
 from httk.workflow.models import Marker
 from httk.workflow.registry import register_workspace
-from httk.workflow.scaffold import describe_runner, new_job
+from httk.workflow.scaffold import describe_package_runner, new_job
 from httk.workflow.workflow_cli import command
 
 # Several tests import httk.atomistic (NumPy) while short-lived runner
@@ -37,7 +37,7 @@ for _thread_limit in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREAD
 
 @pytest.fixture(autouse=True)
 def _isolated_httk_config(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Give every test its own httk config and data home.
+    """Give every test its own httk config and data home, and no ambient VASP command.
 
     This keeps the global workspace registry (``$XDG_CONFIG_HOME/httk/workspaces.json``)
     from leaking between tests or into the developer's real configuration.
@@ -45,6 +45,8 @@ def _isolated_httk_config(tmp_path_factory: pytest.TempPathFactory, monkeypatch:
 
     monkeypatch.setenv("HTTK_CONFIG_HOME", str(tmp_path_factory.mktemp("httk-config")))
     monkeypatch.setenv("HTTK_DATA_HOME", str(tmp_path_factory.mktemp("httk-store")))
+    # A machine exporting a real VASP command must never run it from a test.
+    monkeypatch.delenv("HTTK_VASP_COMMAND", raising=False)
 
 
 @pytest.fixture(autouse=True)
@@ -130,21 +132,18 @@ def require_toolchain(directory: str) -> None:
 
 
 def describe_package(directory: str, tmp_path: Path) -> dict[str, Any]:
-    """Describe a package's ``run``, building a copy first when it is compiled."""
+    """Describe a package's command, building a copy in place first when it is compiled."""
 
     package = REPO_ROOT / directory
     if not (package / "Makefile").is_file():
-        return describe_runner(package / "run")
+        return describe_package_runner(package)
     build = tmp_path / directory
     shutil.copytree(package, build)
     environment = {**os.environ, "HTTK_WORKFLOW_NATIVE_API": str(NATIVE_API)}
     completed = subprocess.run(["make"], cwd=build, env=environment, capture_output=True, text=True, check=False)
     assert completed.returncode == 0, completed.stdout + completed.stderr
-    # The describe call clears HTTK_WORKFLOW_RUNNER_ARTIFACTS, so a wrapper sets it.
-    wrapper = tmp_path / "describe"
-    wrapper.write_text(f'#!/bin/sh\nHTTK_WORKFLOW_RUNNER_ARTIFACTS="{build}" exec "{build}/run" "$@"\n')
-    wrapper.chmod(0o755)
-    return describe_runner(wrapper)
+    # An in-place build leaves the artifacts at their package-relative paths.
+    return describe_package_runner(build, artifacts=build)
 
 
 def run_relax_job(

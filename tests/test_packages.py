@@ -1,12 +1,11 @@
 """Each packaged workflow directory: loads, matches its own runner, and is complete.
 
 Adapted from workflows-vasp's ``tests/test_packages.py``. A compiled package's
-``run`` only execs its build artifact, so its ``--describe`` check builds a copy
+command runs its build artifact, so its ``--describe`` check builds a copy
 first and is skipped when that package's toolchain is missing.
 """
 
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -22,7 +21,8 @@ _DIRECTORIES = tuple(sorted(TOOLCHAINS))
 def test_package_loads(directory: str) -> None:
     provider = load_workflow_package(REPO_ROOT / directory, register=False)
     assert provider.directory == REPO_ROOT / directory
-    assert provider.entry == "run"
+    assert provider.command is not None
+    assert not (REPO_ROOT / directory / "run").exists()
     assert provider.workflow_id == directory.replace("vasp-relax-", "vasp.relax-")
 
 
@@ -51,11 +51,6 @@ def test_package_inputs_and_outputs_are_well_formed(directory: str) -> None:
     for metadata in provider.outputs.values():
         for key in ("entry_type", "ref", "description"):
             assert isinstance(metadata.get(key), str) and metadata[key]
-
-
-@pytest.mark.parametrize("directory", _DIRECTORIES)
-def test_package_run_file_is_executable(directory: str) -> None:
-    assert os.access(REPO_ROOT / directory / "run", os.X_OK)
 
 
 def test_plugin_manifest_lists_exactly_the_seven_directories() -> None:
