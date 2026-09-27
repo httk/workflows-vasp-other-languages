@@ -24,9 +24,9 @@ calculation into the job's transactional data when the job has it. They
 declare the same workflow semantics as `vasp.relax` (the same
 `declaration.json`, input `structure` and outputs `relaxed_structure` and
 `total_energy`), and each `collect.py` calls
-`httk.workflow.vasp.collect.collect_vasp_relax`. They are deliberately minimal
-starting points: the remedy ladder, derived INCAR tags, and POTCAR assembly
-of `vasp.relax` are not reimplemented here.
+`httk.workflow.codes.vasp.collect.collect_vasp_relax`. They are deliberately
+minimal starting points: the remedy ladder, derived INCAR tags, and POTCAR
+assembly of `vasp.relax` are not reimplemented here.
 
 ## Job parameters
 
