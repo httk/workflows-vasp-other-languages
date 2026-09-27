@@ -54,7 +54,7 @@ httk workflow build --workspace WORKSPACE ./vasp-relax-c
 ```
 
 The build command is `make`, which compiles against the installed SDK in
-`$HTTK_WORKFLOW_NATIVE_API/<language>`, a variable `httk workflow build`
+`$HTTK_WORKFLOW_LANGUAGES_DIR/<language>`, a variable `httk workflow build`
 exports. The Rust package copies the SDK crate to `target/sdk` first, since
 Cargo cannot expand an environment variable in a path dependency. Package
 publication transfers sources only, and no package carries a `run` bridge

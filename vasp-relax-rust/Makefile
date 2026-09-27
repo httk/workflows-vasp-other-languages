@@ -1,8 +1,8 @@
-# `httk workflow build` exports HTTK_WORKFLOW_NATIVE_API, the installed native SDK directory.
-ifndef HTTK_WORKFLOW_NATIVE_API
-$(error HTTK_WORKFLOW_NATIVE_API is not set; build with `httk workflow build` or set it to the installed httk/workflow/native)
+# `httk workflow build` exports HTTK_WORKFLOW_LANGUAGES_DIR, the installed native SDK directory.
+ifndef HTTK_WORKFLOW_LANGUAGES_DIR
+$(error HTTK_WORKFLOW_LANGUAGES_DIR is not set; build with `httk workflow build` or set it to the installed httk/workflow/languages)
 endif
-SDK := $(HTTK_WORKFLOW_NATIVE_API)
+SDK := $(HTTK_WORKFLOW_LANGUAGES_DIR)
 
 # Cargo cannot expand environment variables in a path dependency, so the
 # installed SDK crate is copied to target/sdk, which Cargo.toml depends on.

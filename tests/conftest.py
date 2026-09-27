@@ -97,7 +97,7 @@ def test_profile() -> TestProfile:
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MOCK_VASP = Path(__file__).resolve().parent / "mock_vasp.py"
-NATIVE_API = Path(httk.workflow.__file__).parent / "native"
+LANGUAGES_DIR = Path(httk.workflow.__file__).parent / "languages"
 
 # The executables each package needs to build and run.
 TOOLCHAINS = {
@@ -139,7 +139,7 @@ def describe_package(directory: str, tmp_path: Path) -> dict[str, Any]:
         return describe_package_runner(package)
     build = tmp_path / directory
     shutil.copytree(package, build)
-    environment = {**os.environ, "HTTK_WORKFLOW_NATIVE_API": str(NATIVE_API)}
+    environment = {**os.environ, "HTTK_WORKFLOW_LANGUAGES_DIR": str(LANGUAGES_DIR)}
     completed = subprocess.run(["make"], cwd=build, env=environment, capture_output=True, text=True, check=False)
     assert completed.returncode == 0, completed.stdout + completed.stderr
     # An in-place build leaves the artifacts at their package-relative paths.
