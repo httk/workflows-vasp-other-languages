@@ -29,25 +29,12 @@ bool file_exists(const fs::path& path) {
     return fs::is_regular_file(path, error);
 }
 
-int stage_input(const fs::path& job_dir, const std::string& parameter, const std::string& fallback,
-               const fs::path& destination) {
-    const auto relative = Attempt::parameter(parameter, fallback);
-    if (!relative) return -1;
-    const auto source = job_dir / *relative;
-    if (!file_exists(source)) return 0;
-    std::error_code error;
-    fs::copy_file(source, destination, fs::copy_options::overwrite_existing, error);
-    return error ? -1 : 1;
-}
-
 int step_prepare() {
-    const char* job_dir_value = std::getenv("HTTK_WORKFLOW_JOB_DIR");
-    const fs::path job_dir = job_dir_value == nullptr ? "." : job_dir_value;
-    if (stage_input(job_dir, "poscar", "files/POSCAR", "POSCAR") <= 0) {
+    if (!Attempt::stage_input("poscar", "POSCAR", "files/POSCAR")) {
         Attempt::fail("vasp.input_missing", "the starting structure is not in this payload");
         return 0;
     }
-    stage_input(job_dir, "incar", "files/INCAR", "INCAR");
+    Attempt::stage_input("incar", "INCAR", "files/INCAR");
     Attempt::runlog_note("prepared a relaxation");
     Attempt::advance("run");
     return 0;

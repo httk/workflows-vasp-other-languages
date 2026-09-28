@@ -20,7 +20,8 @@ so it publishes the same protocol bytes as a Python or Bash runner.
 All seven share one shape: `prepare` stages the payload POSCAR (and INCAR, if
 present) into the workdir, `run` runs the configured VASP command under
 supervision and classifies the result, and `publish` copies the finished
-calculation into the job's transactional data when the job has it. They
+calculation into the job's transactional data when the job has it. `prepare`
+uses each SDK's `stage_input` verb, so no runner copies files itself. They
 declare the same workflow semantics as `vasp.relax` (the same
 `declaration.json`, input `structure` and outputs `relaxed_structure` and
 `total_energy`), and each `collect.py` calls

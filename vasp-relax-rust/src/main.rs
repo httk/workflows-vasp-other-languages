@@ -16,7 +16,6 @@
 //! See tests/mock_vasp.py for a stand-in VASP, and README.md for the whole flow.
 
 use std::env;
-use std::fs;
 use std::path::Path;
 
 use httk_workflow::{Attempt, Runner, StepError};
@@ -32,39 +31,13 @@ const COLLECT: &[&str] = &[
     "vasp-run-report.json",
 ];
 
-/// One environment variable, or a default when it is unset or empty.
-fn env_or(name: &str, fallback: &str) -> String {
-    match env::var(name) {
-        Ok(value) if !value.is_empty() => value,
-        _ => fallback.to_string(),
-    }
-}
-
-/// Stage a payload-relative file named by one parameter into the workdir.
-/// Returns 1 when staged, 0 when the source is absent, -1 on failure.
-fn stage_input(attempt: &Attempt, job_dir: &str, parameter: &str, fallback: &str, destination: &str) -> i32 {
-    let relative = match attempt.parameter(parameter, Some(fallback)) {
-        Ok(Some(relative)) => relative,
-        _ => return -1,
-    };
-    let source = Path::new(job_dir).join(&relative);
-    if !source.is_file() {
-        return 0;
-    }
-    match fs::copy(&source, destination) {
-        Ok(_) => 1,
-        Err(_) => -1,
-    }
-}
-
 fn step_prepare(attempt: &Attempt) -> Result<(), StepError> {
-    let job_dir = env_or("HTTK_WORKFLOW_JOB_DIR", ".");
-    if stage_input(attempt, &job_dir, "poscar", "files/POSCAR", "POSCAR") <= 0 {
+    if !attempt.stage_input("poscar", "POSCAR", Some("files/POSCAR"))? {
         let _ = attempt.fail("vasp.input_missing", "the starting structure is not in this payload", false);
         return Ok(());
     }
     // An INCAR is optional; the mock VASP reads only the POSCAR.
-    let _ = stage_input(attempt, &job_dir, "incar", "files/INCAR", "INCAR");
+    let _ = attempt.stage_input("incar", "INCAR", Some("files/INCAR"));
     let _ = attempt.runlog_note("prepared a relaxation");
     let _ = attempt.advance("run", &[]);
     Ok(())

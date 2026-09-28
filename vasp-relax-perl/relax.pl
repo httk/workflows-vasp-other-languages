@@ -2,8 +2,6 @@
 
 use strict;
 use warnings;
-use File::Copy qw(copy);
-use File::Spec;
 
 use lib $ENV{HTTK_WORKFLOW_PERL_API} // die "HTTK_WORKFLOW_PERL_API is not set; run this under httk-workflow\n";
 use HttkWorkflow;
@@ -15,23 +13,13 @@ sub env_or {
     return defined($ENV{$name}) && $ENV{$name} ne '' ? $ENV{$name} : $fallback;
 }
 
-sub stage_input {
-    my ($attempt, $job_dir, $parameter, $fallback, $destination) = @_;
-    my $relative = $attempt->parameter($parameter, $fallback);
-    return -1 unless defined($relative);
-    my $source = File::Spec->catfile($job_dir, $relative);
-    return 0 unless -f $source;
-    return copy($source, $destination) ? 1 : -1;
-}
-
 sub step_prepare {
     my ($attempt) = @_;
-    my $job_dir = env_or('HTTK_WORKFLOW_JOB_DIR', '.');
-    if (stage_input($attempt, $job_dir, 'poscar', 'files/POSCAR', 'POSCAR') <= 0) {
+    if (!$attempt->stage_input('poscar', 'POSCAR', 'files/POSCAR')) {
         $attempt->fail('vasp.input_missing', 'the starting structure is not in this payload', 0);
         return 0;
     }
-    stage_input($attempt, $job_dir, 'incar', 'files/INCAR', 'INCAR');
+    $attempt->stage_input('incar', 'INCAR', 'files/INCAR');
     $attempt->runlog_note('prepared a relaxation');
     $attempt->advance('run', []);
     return 0;

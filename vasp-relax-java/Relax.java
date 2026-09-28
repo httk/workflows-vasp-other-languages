@@ -1,7 +1,5 @@
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 
 import static java.lang.System.getenv;
@@ -20,28 +18,12 @@ public final class Relax {
         return value == null || value.isEmpty() ? fallback : value;
     }
 
-    private static int stageInput(
-            HttkWorkflow.Attempt attempt,
-            String jobDir,
-            String parameter,
-            String fallback,
-            String destination) throws IOException {
-        String relative = attempt.parameter(parameter, fallback).orElse(fallback);
-        Path source = Path.of(jobDir, relative);
-        if (!Files.isRegularFile(source)) {
-            return 0;
-        }
-        Files.copy(source, Path.of(destination), StandardCopyOption.REPLACE_EXISTING);
-        return 1;
-    }
-
-    private static int prepare(HttkWorkflow.Attempt attempt) throws IOException {
-        String jobDir = envOr("HTTK_WORKFLOW_JOB_DIR", ".");
-        if (stageInput(attempt, jobDir, "poscar", "files/POSCAR", "POSCAR") <= 0) {
+    private static int prepare(HttkWorkflow.Attempt attempt) {
+        if (!attempt.stageInput("poscar", "POSCAR", "files/POSCAR")) {
             attempt.fail("vasp.input_missing", "the starting structure is not in this payload", false);
             return 0;
         }
-        stageInput(attempt, jobDir, "incar", "files/INCAR", "INCAR");
+        attempt.stageInput("incar", "INCAR", "files/INCAR");
         attempt.runlogNote("prepared a relaxation");
         attempt.advance("run");
         return 0;

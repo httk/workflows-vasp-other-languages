@@ -34,87 +34,20 @@ module relax_steps
 
 contains
 
-  ! One environment variable, or a default when it is unset or empty.
-  function env(name, fallback) result(value)
-    character(len=*), intent(in) :: name, fallback
-    character(len=:), allocatable :: value
-    integer :: l, s
-    call get_environment_variable(name, length=l, status=s)
-    if (s /= 0 .or. l == 0) then
-      value = fallback
-      return
-    end if
-    allocate (character(len=l) :: value)
-    call get_environment_variable(name, value=value)
-  end function
-
   logical function file_exists(path)
     character(len=*), intent(in) :: path
     inquire (file=path, exist=file_exists)
   end function
 
-  ! Copy one file byte for byte; ok is .true. on success.
-  subroutine copy_file(source, destination, ok)
-    character(len=*), intent(in) :: source, destination
-    logical, intent(out) :: ok
-    character(len=:), allocatable :: buffer
-    integer :: unit, ios
-    integer(kind=8) :: nbytes
-    ok = .false.
-    inquire (file=source, size=nbytes)
-    if (nbytes < 0) return
-    open (newunit=unit, file=source, access="stream", form="unformatted", &
-          status="old", action="read", iostat=ios)
-    if (ios /= 0) return
-    allocate (character(len=int(nbytes)) :: buffer)
-    if (nbytes > 0) read (unit, iostat=ios) buffer
-    close (unit)
-    if (ios /= 0) return
-    open (newunit=unit, file=destination, access="stream", form="unformatted", &
-          status="replace", action="write", iostat=ios)
-    if (ios /= 0) return
-    if (nbytes > 0) write (unit, iostat=ios) buffer
-    close (unit)
-    ok = ios == 0
-  end subroutine
-
-  ! Stage a payload-relative file named by one parameter into the workdir.
-  ! Returns 1 when staged, 0 when the source is absent, -1 on failure.
-  function stage_input(job_dir, parameter, fallback, destination) result(result_code)
-    character(len=*), intent(in) :: job_dir, parameter, fallback, destination
-    integer :: result_code
-    character(len=:), allocatable :: relative, source
-    integer :: st
-    logical :: ok
-    ! The parameter has a fallback, so an OK read is always allocated; a refused
-    ! bridge call (status /= OK) leaves `relative` unallocated and is a failure.
-    call httk_workflow_parameter(parameter, relative, fallback, st)
-    if (st /= HTTK_WORKFLOW_OK .or. .not. allocated(relative)) then
-      result_code = -1
-      return
-    end if
-    source = job_dir//"/"//relative
-    if (.not. file_exists(source)) then
-      result_code = 0
-      return
-    end if
-    call copy_file(source, destination, ok)
-    result_code = merge(1, -1, ok)
-  end function
-
   function step_prepare() result(code) bind(c)
     integer(c_int) :: code
-    character(len=:), allocatable :: job_dir
-    integer :: staged
-    job_dir = env("HTTK_WORKFLOW_JOB_DIR", ".")
-    staged = stage_input(job_dir, "poscar", "files/POSCAR", "POSCAR")
-    if (staged <= 0) then
+    if (httk_workflow_stage_input("poscar", "POSCAR", "files/POSCAR") /= HTTK_WORKFLOW_OK) then
       call ignore(httk_workflow_fail("vasp.input_missing", "the starting structure is not in this payload"))
       code = 0
       return
     end if
     ! An INCAR is optional; the mock VASP reads only the POSCAR.
-    staged = stage_input(job_dir, "incar", "files/INCAR", "INCAR")
+    call ignore(httk_workflow_stage_input("incar", "INCAR", "files/INCAR"))
     call ignore(httk_workflow_runlog_note("prepared a relaxation"))
     call ignore(httk_workflow_advance("run"))
     code = 0
@@ -218,7 +151,7 @@ contains
     logical :: to_data
     call httk_workflow_parameter("data_prefix", prefix, "vasp")
     if (.not. allocated(prefix)) prefix = "vasp"
-    data_dir = env("HTTK_WORKFLOW_DATA_DIR", "")
+    data_dir = httk_getenv("HTTK_WORKFLOW_DATA_DIR")
     to_data = len_trim(data_dir) > 0
     do i = 1, size(COLLECT)
       if (.not. file_exists(trim(COLLECT(i)))) cycle
