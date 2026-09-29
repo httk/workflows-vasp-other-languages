@@ -25,9 +25,10 @@ uses each SDK's `stage_input` verb, so no runner copies files itself. They
 declare the same workflow semantics as `vasp.relax` (the same
 `declaration.json`, input `structure` and outputs `relaxed_structure` and
 `total_energy`), and each `collect.py` calls
-`httk.workflow.codes.vasp.collect.collect_vasp_relax`. They are deliberately
-minimal starting points: the remedy ladder, derived INCAR tags, and POTCAR
-assembly of `vasp.relax` are not reimplemented here.
+`httk.codes.vasp.collect.collect_vasp_relax` from an installed
+*httk-workflow-vasp* (`pip install httk-workflow-vasp`). They are
+deliberately minimal starting points: the remedy ladder, derived INCAR tags,
+and POTCAR assembly of `vasp.relax` are not reimplemented here.
 
 ## Job parameters
 
@@ -103,7 +104,8 @@ installs all seven workflow packages listed in `httk_plugin.toml` at once.
 make test
 ```
 
-runs `pytest` on `tests/` against the installed *httk-workflow*. Each
+runs `pytest` on `tests/` against the installed *httk-workflow* and
+*httk-workflow-vasp*. Each
 language's end-to-end test builds its package with `httk workflow build`,
 runs one relaxation job through a real task manager with the mock VASP in
 `tests/mock_vasp.py`, and collects it; it is skipped when that language's
