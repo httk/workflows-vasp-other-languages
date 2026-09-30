@@ -24,9 +24,9 @@ calculation into the job's transactional data when the job has it. `prepare`
 uses each SDK's `stage_input` verb, so no runner copies files itself. They
 declare the same workflow semantics as `vasp.relax` (the same
 `declaration.json`, input `structure` and outputs `relaxed_structure` and
-`total_energy`), and each `collect.py` calls
-`httk.codes.vasp.collect.collect_vasp_relax` from an installed
-*httk-workflow-vasp* (`pip install httk-workflow-vasp`). They are
+`total_energy`), and each `collect.py` reads the CONTCAR and OUTCAR with
+the `httk.codes.vasp.collect` helpers of an installed *httk-workflow-vasp*
+(`pip install httk-workflow-vasp`). They are
 deliberately minimal starting points: the remedy ladder, derived INCAR tags,
 and POTCAR assembly of `vasp.relax` are not reimplemented here.
 
