@@ -39,8 +39,16 @@ and `vasp_command`, the VASP command as one whitespace-split argv string. The
 `vasp.command` workspace setting overrides `vasp_command`:
 
 ```console
-httk workspace settings set --key vasp.command --value 'mpirun vasp_std' WORKSPACE
+httk workspace settings set --key vasp.command --value 'srun vasp_std' WORKSPACE
 ```
+
+These native-language runners call the generic `run` verb, which is not
+code-aware: it runs `vasp.command` exactly as given and never prepends the
+attempt's launch prefix (`HTTK_WORKFLOW_LAUNCH`). On a cluster without
+confinement the command must therefore include the site launcher, as above, and
+the runners do not run in parallel inside a confined attempt
+(`manager.confine=bwrap`). The Python and Bash VASP workflows in
+*workflows-vasp* add the launch prefix automatically.
 
 The packages default to `data.mode` `none`: the persistent workdir is the
 result. Pass `--data-mode transactional` to `httk job new` to also publish the
