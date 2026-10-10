@@ -2,8 +2,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 
-import static java.lang.System.getenv;
-
 /** One minimal three-step VASP relaxation using the native Java SDK. */
 public final class Relax {
     private static final String[] COLLECT = {
@@ -11,11 +9,6 @@ public final class Relax {
     };
 
     private Relax() {
-    }
-
-    private static String envOr(String name, String fallback) {
-        String value = getenv(name);
-        return value == null || value.isEmpty() ? fallback : value;
     }
 
     private static int prepare(HttkWorkflow.Attempt attempt) {
@@ -65,13 +58,14 @@ public final class Relax {
 
     private static int publish(HttkWorkflow.Attempt attempt) {
         String prefix = attempt.parameter("data_prefix", "vasp").orElse("vasp");
-        String dataDir = envOr("HTTK_WORKFLOW_DATA_DIR", "");
+        // Results stay in the workdir; the publish_data parameter opts a job into a data/ copy too.
+        boolean toData = attempt.parameter("publish_data", "false").orElse("false").equals("true");
         for (String name : COLLECT) {
-            if (Files.isRegularFile(Path.of(name)) && !dataDir.isEmpty()) {
+            if (Files.isRegularFile(Path.of(name)) && toData) {
                 attempt.put(name, prefix + "/" + name);
             }
         }
-        attempt.runlogNote(dataDir.isEmpty() ? "kept the result in the workdir" : "published to transactional data");
+        attempt.runlogNote(toData ? "published to the job's data" : "kept the result in the workdir");
         attempt.succeed();
         return 0;
     }

@@ -3,7 +3,7 @@
 !
 !   prepare  stage the payload POSCAR (and INCAR if present) into the workdir
 !   run      run the configured VASP command and classify what it did
-!   publish  copy the finished calculation into the job's transactional data
+!   publish  copy the finished calculation into the job's data when the job sets publish_data
 !
 ! Every httk_workflow_* call reaches the same C bridge the Python, Bash, and C
 ! SDKs do, so this runner is mock-vasp compatible and publishes the same bytes.
@@ -146,13 +146,15 @@ contains
 
   function step_publish() result(code) bind(c)
     integer(c_int) :: code
-    character(len=:), allocatable :: prefix, data_dir, operation
+    character(len=:), allocatable :: prefix, publish, operation
     integer :: i
     logical :: to_data
     call httk_workflow_parameter("data_prefix", prefix, "vasp")
     if (.not. allocated(prefix)) prefix = "vasp"
-    data_dir = httk_getenv("HTTK_WORKFLOW_DATA_DIR")
-    to_data = len_trim(data_dir) > 0
+    ! Results stay in the workdir; the publish_data parameter opts a job into a data/ copy too.
+    call httk_workflow_parameter("publish_data", publish, "false")
+    to_data = .false.
+    if (allocated(publish)) to_data = trim(publish) == "true"
     do i = 1, size(COLLECT)
       if (.not. file_exists(trim(COLLECT(i)))) cycle
       if (to_data) then
@@ -160,7 +162,7 @@ contains
       end if
     end do
     if (to_data) then
-      call ignore(httk_workflow_runlog_note("published to transactional data"))
+      call ignore(httk_workflow_runlog_note("published to the job's data"))
     else
       call ignore(httk_workflow_runlog_note("kept the result in the workdir"))
     end if

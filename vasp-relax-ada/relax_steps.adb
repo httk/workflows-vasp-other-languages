@@ -1,5 +1,4 @@
 with Ada.Directories;
-with Ada.Environment_Variables;
 with Ada.Strings.Unbounded;
 with Httk_Workflow;
 
@@ -114,21 +113,25 @@ package body Relax_Steps is
 
    function Publish return C.int is
       Prefix : U.Unbounded_String;
+      Publish_Data : U.Unbounded_String;
       Operation : U.Unbounded_String;
-      Data_Dir : constant String := Ada.Environment_Variables.Value ("HTTK_WORKFLOW_DATA_DIR", "");
+      To_Data : Boolean;
       Present : Boolean;
       Status : C.int;
    begin
       Httk_Workflow.Httk_Workflow_Parameter ("data_prefix", "vasp", Prefix, Present, Status);
+      --  Results stay in the workdir; the publish_data parameter opts a job into a data/ copy too.
+      Httk_Workflow.Httk_Workflow_Parameter ("publish_data", "false", Publish_Data, Present, Status);
+      To_Data := U.To_String (Publish_Data) = "true";
       for I in Collect'Range loop
-         if Ada.Directories.Exists (U.To_String (Collect (I))) and then Data_Dir'Length > 0 then
+         if Ada.Directories.Exists (U.To_String (Collect (I))) and then To_Data then
             Httk_Workflow.Httk_Workflow_Put
               (U.To_String (Collect (I)), U.To_String (Prefix) & "/" & U.To_String (Collect (I)),
                Operation, Present, Status);
          end if;
       end loop;
-      if Data_Dir'Length > 0 then
-         Status := Httk_Workflow.Httk_Workflow_Runlog_Note ("published to transactional data");
+      if To_Data then
+         Status := Httk_Workflow.Httk_Workflow_Runlog_Note ("published to the job's data");
       else
          Status := Httk_Workflow.Httk_Workflow_Runlog_Note ("kept the result in the workdir");
       end if;

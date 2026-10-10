@@ -3,7 +3,7 @@
 //!
 //!   prepare  stage the payload POSCAR (and INCAR if present) into the workdir
 //!   run      run the configured VASP command and classify what it did
-//!   publish  copy the finished calculation into the job's transactional data
+//!   publish  copy the finished calculation into the job's data when the job sets publish_data
 //!
 //! Every `Attempt` method reaches the same `$HTTK_WORKFLOW_PYTHON -m
 //! httk.workflow._shell_bridge` implementation the Python, Bash, C, and Fortran
@@ -15,7 +15,6 @@
 //!
 //! See tests/mock_vasp.py for a stand-in VASP, and README.md for the whole flow.
 
-use std::env;
 use std::path::Path;
 
 use httk_workflow::{Attempt, Runner, StepError};
@@ -82,8 +81,8 @@ fn step_publish(attempt: &Attempt) -> Result<(), StepError> {
     let prefix = attempt
         .parameter("data_prefix", Some("vasp"))?
         .unwrap_or_else(|| "vasp".to_string());
-    let data_dir = env::var("HTTK_WORKFLOW_DATA_DIR").unwrap_or_default();
-    let to_data = !data_dir.is_empty();
+    // Results stay in the workdir; the publish_data parameter opts a job into a data/ copy too.
+    let to_data = attempt.parameter("publish_data", Some("false"))?.as_deref() == Some("true");
     for &name in COLLECT {
         if !Path::new(name).is_file() {
             continue;
@@ -93,7 +92,7 @@ fn step_publish(attempt: &Attempt) -> Result<(), StepError> {
         }
     }
     let _ = attempt.runlog_note(if to_data {
-        "published to transactional data"
+        "published to the job's data"
     } else {
         "kept the result in the workdir"
     });

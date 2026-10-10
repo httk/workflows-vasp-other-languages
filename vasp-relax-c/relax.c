@@ -5,7 +5,7 @@
  *
  *   prepare  stage the payload POSCAR (and INCAR if present) into the workdir
  *   run      run the configured VASP command and classify what it did
- *   publish  copy the finished calculation into the job's transactional data
+ *   publish  copy the finished calculation into the job's data when the job sets publish_data
  *
  * Every httk_workflow_* call reaches the same implementation the Python and Bash
  * SDKs do, so this runner is mock-vasp compatible and publishes the same bytes.
@@ -98,12 +98,15 @@ static int step_run(void) {
 static int step_publish(void) {
     int status;
     char *prefix = httk_workflow_parameter("data_prefix", "vasp", &status);
-    const char *data_dir = getenv("HTTK_WORKFLOW_DATA_DIR");
+    /* Results stay in the workdir; the publish_data parameter opts a job into a data/ copy too. */
+    char *publish = httk_workflow_parameter("publish_data", "false", &status);
+    int to_data = publish != NULL && strcmp(publish, "true") == 0;
+    free(publish);
     for (size_t i = 0; COLLECT[i] != NULL; i++) {
         if (!httk_file_exists(COLLECT[i])) {
             continue;
         }
-        if (data_dir != NULL && *data_dir != '\0' && prefix != NULL) {
+        if (to_data && prefix != NULL) {
             char *destination = httk_join_path(prefix, COLLECT[i]);
             if (destination != NULL) {
                 char *operation = httk_workflow_put(COLLECT[i], destination, &status);
@@ -112,8 +115,7 @@ static int step_publish(void) {
             }
         }
     }
-    httk_workflow_runlog_note(data_dir != NULL && *data_dir != '\0' ? "published to transactional data"
-                                                                    : "kept the result in the workdir");
+    httk_workflow_runlog_note(to_data ? "published to the job's data" : "kept the result in the workdir");
     httk_workflow_succeed();
     free(prefix);
     return 0;

@@ -3,9 +3,9 @@
 The isolation fixtures and the test-depth knob are those of workflows-vasp's
 ``tests/conftest.py``. The helpers build a package the way ``httk workflow
 build`` does, describe a built runner, and drive one relaxation job of a
-package end to end through the real CLI build registration, a real
-:class:`httk.workflow.TaskManager`, and the package's collector, against the
-mock VASP beside this file.
+package end to end: installed (and so built) into a workspace, run by a real
+:class:`httk.workflow.TaskManager`, and collected by the package's collector,
+against the mock VASP beside this file.
 """
 
 import json
@@ -21,12 +21,11 @@ from typing import Any
 
 import httk.workflow
 import pytest
-from httk.core.cli import CLIContext
 from httk.workflow import TaskManager, Workspace, collect
-from httk.workflow.models import Marker
+from httk.workflow.introspection import read_state, resolve_job
+from httk.workflow.protocol import JobRef
 from httk.workflow.registry import register_workspace
 from httk.workflow.scaffold import describe_package_runner, new_job
-from httk.workflow.workflow_cli import command
 
 # Several tests import httk.atomistic (NumPy) while short-lived runner
 # processes are spawned; keeping each BLAS/OMP runtime to one thread avoids
@@ -146,13 +145,22 @@ def describe_package(directory: str, tmp_path: Path) -> dict[str, Any]:
     return describe_package_runner(build, artifacts=build)
 
 
-def run_relax_job(
-    directory: str, tmp_path: Path, *, data_mode: str | None = None, vasp_command: bool = True
-) -> tuple[Workspace, Marker]:
-    """Build *directory*, run one relaxation job of it to idle, and return its terminal marker.
+def failure(ref: JobRef) -> Any:
+    """The job's recorded failure (``code``, ``message``, ``details``), or ``None``."""
 
-    With *vasp_command* the workspace names the mock VASP; without it no VASP
-    command is configured anywhere.
+    state, damaged = read_state(ref)
+    assert damaged is None, damaged
+    return None if state is None else state.failure
+
+
+def run_relax_job(
+    directory: str, tmp_path: Path, *, publish_data: bool = False, vasp_command: bool = True
+) -> tuple[Workspace, JobRef]:
+    """Install (and so build) *directory*, run one relaxation job of it to idle, and return the job.
+
+    With *publish_data* the job asks the runner to publish its results into
+    ``data/`` too. With *vasp_command* the workspace names the mock VASP;
+    without it no VASP command is configured anywhere.
     """
 
     require_toolchain(directory)
@@ -160,30 +168,29 @@ def run_relax_job(
     workspace = Workspace.initialize(tmp_path / "workspace")
     if vasp_command:
         workspace.set_setting("vasp.command", f"{sys.executable} {MOCK_VASP}")
-    name = register_ws(workspace.root)
-    if (package / "Makefile").is_file():
-        assert command(["build", "--workspace", name, str(package)], CLIContext("httk", tmp_path)) == 0
+    register_ws(workspace.root)
     structure = tmp_path / "POSCAR"
     structure.write_text(POSCAR, encoding="utf-8")
-    job = new_job(workspace, package, inputs={"structure": structure}, data_mode=data_mode, tag="silicon")
+    parameters = {"publish_data": True} if publish_data else None
+    job = new_job(
+        workspace, package, inputs={"structure": structure}, parameters=parameters, tag="silicon", install=True
+    )
     with TaskManager(workspace, heartbeat_interval=0.01) as manager:
         manager.run_until_idle(timeout=300.0)
-    marker = workspace.find_marker_by_id(job.job_id)
-    assert marker is not None
-    return workspace, marker
+    return workspace, resolve_job(workspace, job.job_id)
 
 
-def run_relax_package(directory: str, tmp_path: Path, data_mode: str | None = None) -> None:
+def run_relax_package(directory: str, tmp_path: Path, publish_data: bool = False) -> None:
     """Build, run, and collect one relaxation job of *directory* with the mock VASP."""
 
-    workspace, marker = run_relax_job(directory, tmp_path, data_mode=data_mode)
-    assert marker.kind == "succeeded", workspace.read_state(marker).get("failure")
-    payload = workspace.payload_path(marker.placement, marker.job_key)
+    workspace, ref = run_relax_job(directory, tmp_path, publish_data=publish_data)
+    assert ref.state == "succeeded", failure(ref)
+    payload = ref.path
     state = json.loads((payload / ".httk-job" / "state.json").read_text(encoding="utf-8"))
     assert state["classification"] == "completed"
     assert (payload / "run" / "CONTCAR").is_file()
     published = payload / "data" / "vasp"
-    if data_mode == "transactional":
+    if publish_data:
         assert (published / "CONTCAR").read_text(encoding="utf-8").splitlines()[-1].startswith("0.51")
     else:
         assert not published.exists()

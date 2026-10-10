@@ -12,7 +12,7 @@ import pytest
 from httk.core.plugins.manifest import parse_plugin_manifest
 from httk.workflow.packages import load_workflow_package
 
-from conftest import REPO_ROOT, TOOLCHAINS, describe_package, require_toolchain, run_relax_job
+from conftest import REPO_ROOT, TOOLCHAINS, describe_package, failure, require_toolchain, run_relax_job
 
 _DIRECTORIES = tuple(sorted(TOOLCHAINS))
 
@@ -61,8 +61,8 @@ def test_plugin_manifest_lists_exactly_the_seven_directories() -> None:
 @pytest.mark.parametrize("directory", _DIRECTORIES)
 def test_a_missing_vasp_command_fails_by_name(directory: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("HTTK_VASP_COMMAND", raising=False)
-    workspace, marker = run_relax_job(directory, tmp_path, vasp_command=False)
-    assert marker.kind == "failed"
-    failure = workspace.read_state(marker)["failure"]
-    assert failure["code"] == "vasp.command_missing"
-    assert failure["message"].startswith("no VASP command is configured")
+    _workspace, ref = run_relax_job(directory, tmp_path, vasp_command=False)
+    assert ref.state == "failed"
+    recorded = failure(ref)
+    assert recorded["code"] == "vasp.command_missing"
+    assert recorded["message"].startswith("no VASP command is configured")

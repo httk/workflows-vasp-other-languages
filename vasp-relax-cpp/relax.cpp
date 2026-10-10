@@ -67,14 +67,13 @@ int step_run() {
 
 int step_publish() {
     const auto prefix = Attempt::parameter("data_prefix", "vasp");
-    const char* data_dir = std::getenv("HTTK_WORKFLOW_DATA_DIR");
+    // Results stay in the workdir; the publish_data parameter opts a job into a data/ copy too.
+    const bool to_data = Attempt::parameter("publish_data", "false").value_or("false") == "true";
     for (const auto* name : collect) {
-        if (!file_exists(name) || data_dir == nullptr || *data_dir == '\0' || !prefix) continue;
+        if (!file_exists(name) || !to_data || !prefix) continue;
         Attempt::put(name, *prefix + "/" + name);
     }
-    Attempt::runlog_note(data_dir != nullptr && *data_dir != '\0'
-                             ? "published to transactional data"
-                             : "kept the result in the workdir");
+    Attempt::runlog_note(to_data ? "published to the job's data" : "kept the result in the workdir");
     Attempt::succeed();
     return 0;
 }

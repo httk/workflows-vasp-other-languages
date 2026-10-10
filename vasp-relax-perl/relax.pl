@@ -8,11 +8,6 @@ use HttkWorkflow;
 
 my @collect = qw(INCAR KPOINTS OUTCAR CONTCAR OSZICAR vasprun.xml vasp-run-report.json);
 
-sub env_or {
-    my ($name, $fallback) = @_;
-    return defined($ENV{$name}) && $ENV{$name} ne '' ? $ENV{$name} : $fallback;
-}
-
 sub step_prepare {
     my ($attempt) = @_;
     if (!$attempt->stage_input('poscar', 'POSCAR', 'files/POSCAR')) {
@@ -58,12 +53,13 @@ sub step_run {
 sub step_publish {
     my ($attempt) = @_;
     my $prefix = $attempt->parameter('data_prefix', 'vasp');
-    my $data_dir = env_or('HTTK_WORKFLOW_DATA_DIR', '');
+    # Results stay in the workdir; the publish_data parameter opts a job into a data/ copy too.
+    my $to_data = $attempt->parameter('publish_data', 'false') eq 'true';
     for my $name (@collect) {
         next unless -f $name;
-        $attempt->put($name, "$prefix/$name") if $data_dir ne '';
+        $attempt->put($name, "$prefix/$name") if $to_data;
     }
-    $attempt->runlog_note($data_dir ne '' ? 'published to transactional data' : 'kept the result in the workdir');
+    $attempt->runlog_note($to_data ? "published to the job's data" : 'kept the result in the workdir');
     $attempt->succeed();
     return 0;
 }
