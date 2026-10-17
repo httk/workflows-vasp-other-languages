@@ -114,6 +114,18 @@ installs all seven workflow packages listed in `httk_plugin.toml` at once on
 this machine; each is still installed into a workspace (`httk job new
 --install --workflow vasp.relax-c`) before its jobs are created.
 
+## Install with pip
+
+From a clone, `pip install -e .` or `pip install .` installs the workflows'
+dependencies and makes every workflow of this repository known to *httk₂* in
+that Python environment, at HEAD and at every `wf-v*` tag, each under its
+GitHub commit URI. Only committed content is installed; use a package path
+for a working copy. An editable install follows `git pull` (restart running
+httk processes); a non-editable install at an unchanged version picks up new
+tags only with `pip install --force-reinstall --no-deps .`. Shallow clones are
+refused (`git fetch --unshallow --tags`). The compilers (gnat, gfortran, g++,
+cargo, javac, …) are not pip dependencies; install them separately.
+
 ## Testing
 
 ```console
